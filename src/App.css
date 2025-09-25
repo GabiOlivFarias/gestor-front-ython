@@ -1,0 +1,223 @@
+/* frontend/src/App.css (Versão com Design "Glassmorphism") */
+
+/* --- Importando uma fonte moderna do Google Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* --- Resets e Estilos Globais --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #f0f0f0;
+    /* O fundo gradiente dinâmico */
+    background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    min-height: 100vh;
+}
+
+/* Animação para o fundo gradiente */
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* --- Layout Principal --- */
+main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+}
+
+hgroup {
+    text-align: center;
+    margin-bottom: 3rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+h1 {
+    font-weight: 700;
+    font-size: 2.5rem;
+}
+
+h2 {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.1rem;
+    font-weight: 400;
+}
+
+/* === Estilo "Vidro Fosco" para os Cards === */
+.card {
+    /* A mágica do vidro */
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); /* Para compatibilidade */
+    
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    
+    padding: 2rem;
+    margin-bottom: 2.5rem;
+}
+
+.card h3 {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 1rem;
+    font-weight: 600;
+}
+
+/* === Formulários com Estilo === */
+form > *, form .grid {
+    margin-bottom: 1rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+input, select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 0.8em 1em;
+    color: #f0f0f0;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+/* Estilo para o seletor de data */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+/* === Botões === */
+button {
+    width: 100%;
+    padding: 1em;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 1rem;
+}
+
+button[type="submit"] {
+    background: #6a11cb;
+    background: -webkit-linear-gradient(to right, #2575fc, #6a11cb);
+    background: linear-gradient(to right, #2575fc, #6a11cb);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* === Tabela === */
+.overflow-auto {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+thead th {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.actions-cell {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.actions-cell button {
+    width: auto;
+    font-size: 0.8rem;
+    padding: 0.5em 1em;
+    margin-left: 0.5rem;
+    margin-top: 0;
+}
+
+.actions-cell button.secondary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+@media (max-width: 768px) {
+    main {
+        padding: 2rem 1rem; /* Diminui o espaçamento lateral */
+    }
+
+    h1 {
+        font-size: 2rem; /* Diminui o título principal */
+    }
+
+    .card {
+        padding: 1.5rem; /* Diminui o espaçamento interno dos cards */
+    }
+
+    /* A mudança mais importante: o formulário agora terá 1 coluna */
+    .grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    th, td {
+        padding: 0.75rem; /* Deixa a tabela um pouco mais compacta */
+        font-size: 0.9rem;
+    }
+
+    .actions-cell {
+        /* Garante que os botões não fiquem grandes demais */
+        width: 1%;
+    }
+    
+    .actions-cell button {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.6rem;
+    }
+}
