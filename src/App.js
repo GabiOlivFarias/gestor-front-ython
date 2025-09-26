@@ -1,78 +1,118 @@
+// src/App.js
+
 import React, { useState, useEffect, useCallback } from 'react';
+import { add, isToday, isPast, parseISO } from 'date-fns';
 import ClientForm from './ClientForm';
 import DueClientsList from './DueClientsList';
 import './App.css';
 
-// A URL do seu backend será lida da variável de ambiente
 const API_URL = process.env.REACT_APP_API_URL;
 
-function App() {
-  const [dueClients, setDueClients] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isFormVisible, setIsFormVisible] = useState(false);
+const calculateNextDueDate = (client) => {
+  if (!client.data_inicio) return null;
+  const startDate = parseISO(client.data_inicio);
+  if (isNaN(startDate)) return null;
 
-  // Função para buscar os dados do backend
+  let nextDueDate;
+  if (client.frequencia === 'mensal') {
+    nextDueDate = add(startDate, { months: client.parcelas_pagas });
+  } else if (client.frequencia === 'semanal') {
+    nextDueDate = add(startDate, { weeks: client.parcelas_pagas });
+  } else {
+    nextDueDate = startDate;
+  }
+  return nextDueDate;
+};
+
+function App() {
+  const [allClients, setAllClients] = useState([]);
+  const [dueClients, setDueClients] = useState([]);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  // --- MUDANÇA: Estado para mostrar a lista completa ---
+  const [isAllClientsVisible, setIsAllClientsVisible] = useState(false);
+
   const fetchCobrancas = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     try {
-      const response = await fetch(`${API_URL}/cobrancas`);
-      if (!response.ok) {
-        throw new Error('Falha ao buscar dados da API.');
-      }
+      const response = await fetch(`${API_URL}/clientes`);
+      if (!response.ok) throw new Error('Falha ao buscar dados.');
       const data = await response.json();
-      // O backend agora faz o filtro, então só recebemos os clientes pendentes
-      setDueClients(data); 
-    } catch (err) {
-      setError(err.message);
-      console.error("Erro ao buscar cobranças:", err);
-    } finally {
-      setIsLoading(false);
+      setAllClients(data);
+    } catch (error) {
+      console.error("Erro ao buscar clientes:", error);
     }
   }, []);
 
-  // useEffect para buscar os dados iniciais quando o app carrega
   useEffect(() => {
     fetchCobrancas();
   }, [fetchCobrancas]);
 
-  // Função para adicionar um novo cliente via API
+  useEffect(() => {
+    const clientsForList = allClients
+      .filter(client => {
+        if (!client.data_inicio || client.parcelas_pagas >= client.total_parcelas) {
+          return false;
+        }
+        const nextDueDate = calculateNextDueDate(client);
+        return nextDueDate && (isToday(nextDueDate) || isPast(nextDueDate));
+      })
+      .map(client => {
+        const nextDueDate = calculateNextDueDate(client);
+        const overdue = nextDueDate && !isToday(nextDueDate) && isPast(nextDueDate);
+        return { ...client, isOverdue: overdue };
+      })
+      .sort((a, b) => (b.isOverdue ? 1 : 0) - (a.isOverdue ? 1 : 0));
+
+    setDueClients(clientsForList);
+  }, [allClients]);
+
   const handleAddClient = async (clientData) => {
+    // Renomeia os campos para corresponder ao backend
+    const dataToSend = {
+      nome_cliente: clientData.nome,
+      telefone: clientData.telefone,
+      valor_parcela: clientData.valor,
+      valor_total: clientData.valor * clientData.totalParcelas, // Exemplo de cálculo
+      vencimento: clientData.dataInicio,
+      tipo_pagamento: clientData.frequencia,
+      parcela_atual: clientData.parcelas_pagas,
+      total_parcelas: clientData.totalParcelas,
+    };
+
     try {
-      const response = await fetch(`${API_URL}/cobrancas`, {
+      await fetch(`${API_URL}/adicionar_cliente`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(clientData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
       });
-      if (!response.ok) {
-        throw new Error('Falha ao adicionar cliente.');
-      }
-      setIsFormVisible(false); // Esconde o formulário
-      fetchCobrancas();     // Atualiza a lista buscando os dados novamente
-    } catch (err) {
-      setError(err.message);
-      console.error("Erro ao adicionar cliente:", err);
+      fetchCobrancas();
+      setIsFormVisible(false);
+    } catch (error) {
+      console.error("Erro ao adicionar cliente:", error);
     }
   };
 
-  // Função para marcar uma parcela como paga via API
   const handleMarkAsPaid = async (clientId) => {
     try {
-      const response = await fetch(`${API_URL}/cobrancas/${clientId}/pagar`, {
-        method: 'PUT',
+      await fetch(`${API_URL}/marcar_pago`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_cliente: clientId }),
       });
-      if (!response.ok) {
-        throw new Error('Falha ao registrar pagamento.');
-      }
-      fetchCobrancas(); // Atualiza a lista buscando os dados novamente
-    } catch (err) {
-      setError(err.message);
-      console.error("Erro ao marcar como pago:", err);
+      fetchCobrancas();
+    } catch (error) {
+      console.error("Erro ao marcar como pago:", error);
     }
   };
+  
+  // --- MUDANÇA: Processa a lista completa para adicionar a flag ---
+  const processedAllClients = allClients.map(client => {
+    if (!client.data_inicio || client.parcelas_pagas >= client.total_parcelas) {
+      return { ...client, isOverdue: false };
+    }
+    const nextDueDate = calculateNextDueDate(client);
+    const overdue = nextDueDate && !isToday(nextDueDate) && isPast(nextDueDate);
+    return { ...client, isOverdue: overdue };
+  });
 
   return (
     <main className="container">
@@ -80,20 +120,35 @@ function App() {
         <h1>Gestor de Cobranças</h1>
       </header>
       
-      {isLoading && <p>Carregando cobranças...</p>}
-      {error && <p style={{color: 'red'}}>Erro: {error}</p>}
-      {!isLoading && !error && (
-        <DueClientsList clients={dueClients} onMarkAsPaid={handleMarkAsPaid} />
-      )}
+      <DueClientsList clients={dueClients} onMarkAsPaid={handleMarkAsPaid} />
       
       <article className="card">
         {isFormVisible ? (
-          <ClientForm 
-            onAddClient={handleAddClient} 
-            onCancel={() => setIsFormVisible(false)}
-          />
+          <ClientForm onAddClient={handleAddClient} onCancel={() => setIsFormVisible(false)} />
         ) : (
           <button onClick={() => setIsFormVisible(true)}>Adicionar Novo Serviço</button>
+        )}
+      </article>
+
+      {/* --- MUDANÇA: Botão e lista completa condicional --- */}
+      <article className="card">
+        <button className="secondary outline" onClick={() => setIsAllClientsVisible(!isAllClientsVisible)}>
+          {isAllClientsVisible ? 'Esconder Lista Completa' : 'Mostrar Lista Completa de Clientes'}
+        </button>
+
+        {isAllClientsVisible && (
+          <ul>
+            {processedAllClients.length > 0 ? (
+              processedAllClients.map(c => (
+                <li key={c.id}>
+                  {c.nome_cliente} - {c.descricao || 'Serviço'} (Pagas: {c.parcela_atual || c.parcelas_pagas}/{c.total_parcelas})
+                  {c.isOverdue && <span className="tag-atrasado"> ATRASADO</span>}
+                </li>
+              ))
+            ) : (
+              <p>Nenhum cliente cadastrado ainda.</p>
+            )}
+          </ul>
         )}
       </article>
     </main>

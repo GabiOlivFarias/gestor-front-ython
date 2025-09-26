@@ -187,6 +187,23 @@ tbody tr:hover {
     color: white;
 }
 
+input[type="date"] {
+  position: relative;
+  color: var(--text-color);
+}
+
+input[type="date"]:required:invalid::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--subtle-text-color);
+  opacity: 0.8;
+}
+
+input[type="date"]:focus::before,
+input[type="date"]:valid::before {
+  content: "";
+}
+
 @media (max-width: 768px) {
     main {
         padding: 2rem 1rem; /* Diminui o espaçamento lateral */

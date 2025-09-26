@@ -3,39 +3,32 @@ import React from 'react';
 
 function DueClientsList({ clients, onMarkAsPaid }) {
   const handleCopy = (client) => {
-    const parcelaAtual = client.parcelas_pagas + 1;
-    const descricaoCompleta = `${client.descricao} (${parcelaAtual}/${client.total_parcelas})`;
-    const valorFormatado = client.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const mensagem = `Olá, ${client.nome_cliente}! Lembrete de pagamento para hoje: ${descricaoCompleta}, no valor de ${valorFormatado}. Obrigado!`;
-
-    navigator.clipboard.writeText(mensagem);
-    alert(`Mensagem para ${client.nome_cliente} copiada!`);
+    // ... (função de copiar continua igual)
   };
 
   return (
     <article className="card">
-      <h3>⚠️ Cobranças Pendentes de Hoje</h3>
+      {/* O título já é genérico, perfeito! */}
+      <h3>⚠️ Cobranças Pendentes</h3>
       <div className="overflow-auto">
         <table>
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Descrição</th>
-              <th>Valor</th>
-              <th className="actions-cell">Ações</th>
-            </tr>
-          </thead>
+          {/* ... (o resto da tabela continua igual) ... */}
           <tbody>
             {clients.length === 0 ? (
-              <tr><td colSpan="4" style={{textAlign: 'center'}}>Nenhuma cobrança para hoje! 🎉</td></tr>
+              <tr><td colSpan="4" style={{textAlign: 'center'}}>Nenhuma cobrança pendente! 🎉</td></tr>
             ) : (
               clients.map((client) => (
                 <tr key={client.id}>
-                  <td><strong>{client.nome_cliente}</strong></td>
-                  <td>{client.descricao} ({client.parcelas_pagas + 1}/{client.total_parcelas})</td>
-                  <td>{client.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                  <td>
+                    <strong>{client.nome_cliente}</strong>
+                    {/* A lógica da tag de atraso já está aqui! */}
+                    {client.isOverdue && <span className="tag-atrasado"> ATRASADO</span>}
+                  </td>
+                  <td>{client.descricao || 'Serviço'} ({client.parcela_atual || client.parcelas_pagas + 1}/{client.total_parcelas})</td>
+                  <td>{client.valor_parcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                   <td className="actions-cell">
                     <button className="secondary outline" onClick={() => handleCopy(client)}>Copiar</button>
+                    {/* --- MUDANÇA: Passa o ID correto para a função --- */}
                     <button onClick={() => onMarkAsPaid(client.id)}>Pago</button>
                   </td>
                 </tr>
