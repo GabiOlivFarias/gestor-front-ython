@@ -8,21 +8,42 @@ import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-// Função para calcular a próxima data de vencimento
 const calculateNextDueDate = (client) => {
-  if (!client.vencimento) return null;
-  const startDate = parseISO(client.vencimento);
+  if (!client.data_inicio) return null;
+  const startDate = parseISO(client.data_inicio);
   if (isNaN(startDate)) return null;
 
   let nextDueDate;
-  if (client.tipo_pagamento === 'mensal') {
-    nextDueDate = add(startDate, { months: client.parcela_atual });
-  } else if (client.tipo_pagamento === 'semanal') {
-    nextDueDate = add(startDate, { weeks: client.parcela_atual });
+  if (client.frequencia === 'mensal') {
+    nextDueDate = add(startDate, { months: client.parcelas_pagas });
+  } else if (client.frequencia === 'semanal') {
+    nextDueDate = add(startDate, { weeks: client.parcelas_pagas });
   } else {
     nextDueDate = startDate;
   }
   return nextDueDate;
+};
+
+// --- NOVO: função para normalizar o shape vindo do backend ---
+// Mapeia campos típicos do backend para os nomes usados no front.
+const normalizeClient = (c) => {
+  return {
+    ...c, // mantem os campos originais caso precise
+    id: c.id ?? c.id_cliente ?? c._id ?? Date.now(),
+    nome_cliente: c.nome_cliente ?? c.nome ?? 'Sem nome',
+    descricao: c.descricao ?? c.servico ?? '',
+    // data_inicio é o que calculateNextDueDate espera
+    data_inicio: c.data_inicio ?? c.vencimento ?? '',
+    // frequencia é o que calculateNextDueDate espera
+    frequencia: c.frequencia ?? c.tipo_pagamento ?? 'mensal',
+    // parcelas_pagas é o que o código usa para calcular próxima parcela
+    parcelas_pagas: Number(c.parcelas_pagas ?? c.parcela_atual ?? c.parcelaAtual ?? 0),
+    // total_parcelas padronizado
+    total_parcelas: Number(c.total_parcelas ?? c.totalParcelas ?? 1),
+    // valores opcionais
+    telefone: c.telefone ?? '',
+    valor: Number(c.valor ?? c.valor_parcela ?? c.valor_parcela ?? 0),
+  };
 };
 
 function App() {
@@ -31,13 +52,15 @@ function App() {
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isAllClientsVisible, setIsAllClientsVisible] = useState(false);
 
-  // Buscar clientes no backend
   const fetchCobrancas = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/clientes`);
       if (!response.ok) throw new Error('Falha ao buscar dados.');
       const data = await response.json();
-      setAllClients(data);
+
+      // --- ALTERAÇÃO: normaliza cada cliente recebido antes de salvar no estado ---
+      const normalized = Array.isArray(data) ? data.map(normalizeClient) : [];
+      setAllClients(normalized);
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);
     }
@@ -47,11 +70,10 @@ function App() {
     fetchCobrancas();
   }, [fetchCobrancas]);
 
-  // Processar clientes que vencem hoje ou já venceram
   useEffect(() => {
     const clientsForList = allClients
       .filter(client => {
-        if (!client.vencimento || client.parcela_atual >= client.total_parcelas) {
+        if (!client.data_inicio || client.parcelas_pagas >= client.total_parcelas) {
           return false;
         }
         const nextDueDate = calculateNextDueDate(client);
@@ -67,8 +89,8 @@ function App() {
     setDueClients(clientsForList);
   }, [allClients]);
 
-  // Adicionar cliente
   const handleAddClient = async (clientData) => {
+    // Renomeia os campos para corresponder ao backend
     const dataToSend = {
       nome_cliente: clientData.nome,
       telefone: clientData.telefone,
@@ -86,14 +108,13 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
       });
-      fetchCobrancas();
+      await fetchCobrancas();
       setIsFormVisible(false);
     } catch (error) {
       console.error("Erro ao adicionar cliente:", error);
     }
   };
 
-  // Marcar cliente como pago
   const handleMarkAsPaid = async (clientId) => {
     try {
       await fetch(`${API_URL}/marcar_pago`, {
@@ -101,15 +122,15 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_cliente: clientId }),
       });
-      fetchCobrancas();
+      await fetchCobrancas();
     } catch (error) {
       console.error("Erro ao marcar como pago:", error);
     }
   };
-
-  // Processa lista completa
+  
+  // --- Processa a lista completa (usando os campos já normalizados) ---
   const processedAllClients = allClients.map(client => {
-    if (!client.vencimento || client.parcela_atual >= client.total_parcelas) {
+    if (!client.data_inicio || client.parcelas_pagas >= client.total_parcelas) {
       return { ...client, isOverdue: false };
     }
     const nextDueDate = calculateNextDueDate(client);
@@ -123,10 +144,8 @@ function App() {
         <h1>Gestor de Cobranças</h1>
       </header>
       
-      {/* Lista de clientes com cobrança vencendo ou atrasada */}
       <DueClientsList clients={dueClients} onMarkAsPaid={handleMarkAsPaid} />
       
-      {/* Formulário para adicionar clientes */}
       <article className="card">
         {isFormVisible ? (
           <ClientForm onAddClient={handleAddClient} onCancel={() => setIsFormVisible(false)} />
@@ -135,7 +154,6 @@ function App() {
         )}
       </article>
 
-      {/* Lista completa de clientes */}
       <article className="card">
         <button className="secondary outline" onClick={() => setIsAllClientsVisible(!isAllClientsVisible)}>
           {isAllClientsVisible ? 'Esconder Lista Completa' : 'Mostrar Lista Completa de Clientes'}
@@ -146,8 +164,7 @@ function App() {
             {processedAllClients.length > 0 ? (
               processedAllClients.map(c => (
                 <li key={c.id}>
-                  {c.nome_cliente} - {c.descricao || 'Serviço'} 
-                  (Pagas: {c.parcela_atual}/{c.total_parcelas})
+                  {c.nome_cliente} - {c.descricao || 'Serviço'} (Pagas: {c.parcelas_pagas}/{c.total_parcelas})
                   {c.isOverdue && <span className="tag-atrasado"> ATRASADO</span>}
                 </li>
               ))
